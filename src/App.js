@@ -1,18 +1,17 @@
-// App.js
-
 import React, { useState, useEffect } from 'react';
-import AudioClassifier from './AudioClassifier'; // Audio-Klassifizierer importieren
+import AudioClassifier from './AudioClassifier'; // Importiere Audio-Klassifizierer-Komponente
 
 function App() {
-    const [time, setTime] = useState(0); // Timer-Zeit in Sekunden
+    const [time, setTime] = useState(60); // Startzeit des Timers (1 Minute in Sekunden)
     const [isRunning, setIsRunning] = useState(false); // Status des Timers
+    const [timerDuration, setTimerDuration] = useState(60); // Timer-Dauer in Sekunden (1 Minute)
 
-    // Timer-Funktion, die jede Sekunde die Zeit erhöht
+    // Timer-Funktion, die jede Sekunde die verbleibende Zeit verringert
     useEffect(() => {
         let timer = null;
-        if (isRunning) {
+        if (isRunning && time > 0) {
             timer = setInterval(() => {
-                setTime((prevTime) => prevTime + 1);
+                setTime((prevTime) => prevTime - 1);
             }, 1000);
         } else if (!isRunning && time !== 0) {
             clearInterval(timer);
@@ -29,24 +28,38 @@ function App() {
         }
     };
 
-    // Manuelles Starten und Stoppen des Timers
-    const handleStartStop = () => {
-        setIsRunning((prevState) => !prevState);
-    };
+    // Berechnet den Fortschritt des Kreises basierend auf der verbleibenden Zeit
+    const progress = (time / timerDuration) * 100;
 
     return (
         <div className="App">
-            <h1>Voice-Controlled Timer</h1>
-            <div>
-                <h2>
-                    {Math.floor(time / 60)}:
-                    {time % 60 < 10 ? `0${time % 60}` : time % 60}
-                </h2>
-                <button onClick={handleStartStop}>
+            <div className="timer-container">
+                <div className="circle-progress">
+                    <svg width="200" height="200" viewBox="0 0 200 200">
+                        {/* Hintergrundkreis */}
+                        <circle cx="100" cy="100" r="90" stroke="#fff" strokeWidth="10" fill="none" />
+                        {/* Fortschrittskreis */}
+                        <circle
+                            cx="100"
+                            cy="100"
+                            r="90"
+                            stroke="#00bcd4" // Blaue Farbe für den Fortschritt
+                            strokeWidth="10"
+                            fill="none"
+                            strokeDasharray="565" // Umfang des Kreises
+                            strokeDashoffset={(565 * (100 - progress)) / 100}
+                            style={{ transition: 'stroke-dashoffset 1s ease' }}
+                        />
+                    </svg>
+                    <div className="timer-display">
+                        {Math.floor(time / 60)}:{time % 60 < 10 ? `0${time % 60}` : time % 60}
+                    </div>
+                </div>
+                <button className="start-stop-btn" onClick={() => setIsRunning((prevState) => !prevState)}>
                     {isRunning ? 'Stop Timer' : 'Start Timer'}
                 </button>
             </div>
-            <AudioClassifier onCommand={handleAudioCommand} /> {/* AudioClassifier-Komponente mit Callback */}
+            <AudioClassifier onCommand={handleAudioCommand} /> {/* Audio-Klassifizierer-Komponente */}
         </div>
     );
 }
