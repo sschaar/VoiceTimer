@@ -1,13 +1,13 @@
 import React from 'react';
-import TeachableMachineAudioModel from './TeachableMachineAudioModel'; // Importiere deine TeachableMachineAudioModel-Komponente
+import TimerComponent from './TimerComponent';
 
-function App() {
+const App = () => {
     return (
-        <div className="App">
-            <h1>Timer mit Sprachsteuerung</h1>
-            <TeachableMachineAudioModel /> {/* Füge die TeachableMachineAudioModel-Komponente hier hinzu */}
+        <div>
+            <h1>Voice-Controlled Timer</h1>
+            <TimerComponent />
         </div>
     );
-}
+};
 
 export default App;
