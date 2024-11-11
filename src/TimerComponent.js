@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import * as speechCommands from '@tensorflow-models/speech-commands';
+import { Button, Container, Row, Col, Card, ListGroup } from 'react-bootstrap';
 
 const TimerComponent = () => {
     const recognizerRef = useRef(null);
@@ -7,6 +8,9 @@ const TimerComponent = () => {
     const [predictions, setPredictions] = useState([]);
     const [timeLeft, setTimeLeft] = useState(60); // Timer starting from 1 minute (60 seconds)
     const [timerActive, setTimerActive] = useState(false); // Timer control state
+    const [backgroundNoise, setBackgroundNoise] = useState(""); // Set initial value to an empty string
+    const [start, setStart] = useState(""); // Set initial value to an empty string
+    const [stop, setStop] = useState(""); // Set initial value to an empty string
 
     const URL = "https://teachablemachine.withgoogle.com/models/MOI9rzYJL/";
 
@@ -35,7 +39,7 @@ const TimerComponent = () => {
             console.log("Modell und Metadaten erfolgreich geladen.");
 
             const classLabels = recognizer.wordLabels();
-            console.log("Available class labels:", classLabels);
+            console.log("Verfügbare Labels:", classLabels);
 
             if (!classLabels.includes("start") || !classLabels.includes("stop")) {
                 console.error("Das Modell enthält nicht die erwarteten Labels 'start' und 'stop'.");
@@ -75,14 +79,22 @@ const TimerComponent = () => {
             }, 1000);
         } else if (timeLeft === 0) {
             setTimerActive(false); // Stop timer when it reaches 0
+            resetValues();
         }
 
         return () => clearInterval(timerInterval);
     }, [timerActive, timeLeft]);
 
+    const resetValues = () => {
+        setStart("");
+        setStop("");
+        setBackgroundNoise("");
+    };
+
     const startListening = () => {
         const recognizer = recognizerRef.current;
         if (recognizer) {
+            resetValues();
             recognizer.listen(
                 (result) => {
                     const scores = result.scores;
@@ -102,10 +114,14 @@ const TimerComponent = () => {
 
                     if (scores[startIndex] > threshold) {
                         console.log("Start-Befehl erkannt");
+                        setStart(scores[startIndex].toFixed(2));
                         startTimer();
                     } else if (scores[stopIndex] > threshold) {
                         console.log("Stop-Befehl erkannt");
+                        setStop(scores[stopIndex].toFixed(2));
                         stopTimer();
+                    } else {
+                        setBackgroundNoise(scores[0].toFixed(2)); // Update background noise value
                     }
                 },
                 {
@@ -128,35 +144,50 @@ const TimerComponent = () => {
 
     const startTimer = () => {
         if (!timerActive && timeLeft > 0) {
-            setTimerActive(true); // Start or resume timer only if not active and timeLeft > 0
+            setTimerActive(true);
         }
     };
 
     const stopTimer = () => {
-        setTimerActive(false); // Pause the timer without resetting it
+        setTimerActive(false);
     };
 
     return (
-        <div>
-            <h1>Speech Command Timer</h1>
-            <button onClick={isListening ? stopListening : startListening}>
-                {isListening ? "Stop Listening" : "Start Listening"}
-            </button>
-            <div id="label-container"></div>
-            <div>
-                {predictions.length > 0 && (
-                    <ul>
-                        {predictions.map((prediction, index) => (
-                            <li key={index}>{prediction}</li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-            <div>
-                <h2>Time Left: {timeLeft}s</h2>
-                {timeLeft === 0 && <p>Timer ended!</p>}
-            </div>
-        </div>
+        <Container className="d-flex justify-content-center align-items-center vh-100 bg-dark text-light">
+            <Row className="text-center">
+                <Col>
+                    <Card className="p-4 bg-dark text-light border-light">
+                        <h2>Timer</h2>
+
+                        {/* Timer and initial state */}
+                        <div className="mb-4">
+                            <h3 className="font-weight-bold">{timeLeft}s</h3>
+                            {timeLeft === 0 && <p className="text-danger font-weight-bold">Timer ended!</p>}
+                        </div>
+
+                        <Button
+                            variant={isListening ? "danger" : "success"}
+                            onClick={isListening ? stopListening : startListening}
+                        >
+                            {isListening ? "Stop Listening" : "Start Listening"}
+                        </Button>
+
+                        {/* Predictions Display */}
+                        <div id="label-container" className="mt-4">
+                            {predictions.length > 0 && (
+                                <ListGroup className="mt-3">
+                                    {predictions.map((prediction, index) => (
+                                        <ListGroup.Item key={index} className="bg-dark text-light border-light">
+                                            {prediction}
+                                        </ListGroup.Item>
+                                    ))}
+                                </ListGroup>
+                            )}
+                        </div>
+                    </Card>
+                </Col>
+            </Row>
+        </Container>
     );
 };
 
