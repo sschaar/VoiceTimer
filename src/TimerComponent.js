@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from "react";
-import * as speechCommands from '@tensorflow-models/speech-commands'; // Importiere speechCommands
+import React, { useEffect, useState, useRef } from "react";
+import * as speechCommands from '@tensorflow-models/speech-commands';
 
 const TimerComponent = () => {
-    const [recognizer, setRecognizer] = useState(null);
+    const recognizerRef = useRef(null);
     const [isListening, setIsListening] = useState(false);
     const [predictions, setPredictions] = useState([]);
+    const [timeLeft, setTimeLeft] = useState(60); // Timer starting from 1 minute (60 seconds)
+    const [timerActive, setTimerActive] = useState(false); // Timer control state
 
-    // URL des Teachable Machine Modells
     const URL = "https://teachablemachine.withgoogle.com/models/MOI9rzYJL/";
 
-    // Funktion, um Mikrofonberechtigung zu überprüfen
     const requestMicrophonePermission = async () => {
         try {
             await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -20,104 +20,129 @@ const TimerComponent = () => {
         }
     };
 
-    // Erstelle und lade das Modell
     const createModel = async () => {
-        const checkpointURL = URL + "model.json"; // Modell-URL
-        const metadataURL = URL + "metadata.json"; // Metadaten-URL
+        const checkpointURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
         try {
             const recognizer = speechCommands.create(
-                "BROWSER_FFT", // FFT-Typ für die Frequenzanalyse
-                undefined, // Hier wird keine spezifische Wortschatzvorlage benötigt
+                "BROWSER_FFT",
+                undefined,
                 checkpointURL,
                 metadataURL
             );
-            // Warten, bis das Modell und die Metadaten geladen sind
             await recognizer.ensureModelLoaded();
             console.log("Modell und Metadaten erfolgreich geladen.");
 
-            const classLabels = recognizer.wordLabels(); // ["start", "stop"]
-            if (classLabels.length !== 2) {
-                console.error("Das Modell hat eine unerwartete Anzahl von Labels. Erwartet 2 Labels.");
-                return;
+            const classLabels = recognizer.wordLabels();
+            console.log("Available class labels:", classLabels);
+
+            if (!classLabels.includes("start") || !classLabels.includes("stop")) {
+                console.error("Das Modell enthält nicht die erwarteten Labels 'start' und 'stop'.");
+                return null;
             }
+
+            recognizerRef.current = recognizer;
             return recognizer;
         } catch (error) {
             console.error("Fehler beim Laden des Modells:", error);
+            return null;
         }
     };
 
-    // Initialisiere das Modell und starte das Zuhören
     const init = async () => {
-        await requestMicrophonePermission(); // Mikrofonberechtigung anfordern
-        const loadedRecognizer = await createModel();
-        if (loadedRecognizer) {
-            setRecognizer(loadedRecognizer);
-            const classLabels = loadedRecognizer.wordLabels(); // ["start", "stop"]
-            console.log(classLabels); // Sollte nur ["start", "stop"] enthalten
-
-            // Container für die Anzeige der Vorhersagen
-            const labelContainer = document.getElementById("label-container");
-            for (let i = 0; i < classLabels.length; i++) {
-                labelContainer.appendChild(document.createElement("div"));
-            }
-
-            // Startet das Zuhören auf die Sprachbefehle
-            loadedRecognizer.listen(
-                (result) => {
-                    const scores = result.scores; // Wahrscheinlichkeiten für jedes Label
-                    console.log(scores); // Ausgabe der Wahrscheinlichkeiten für "start" und "stop"
-
-                    // Anzeige der Vorhersagen
-                    const predictions = [];
-                    for (let i = 0; i < classLabels.length; i++) {
-                        const classPrediction = `${classLabels[i]}: ${scores[i].toFixed(2)}`;
-                        predictions.push(classPrediction);
-                        labelContainer.childNodes[i].innerHTML = classPrediction;
-                    }
-
-                    setPredictions(predictions);
-
-                    // Hier kannst du auch die Logik für den Timer einfügen,
-                    // je nachdem, ob "start" oder "stop" erkannt wird.
-                },
-                {
-                    includeSpectrogram: true, // Gibt auch das Spektrogramm zurück
-                    probabilityThreshold: 0.75, // Schwelle für die Vorhersagewahrscheinlichkeit
-                    invokeCallbackOnNoiseAndUnknown: true, // Callback auch für Geräusche und unbekannte Wörter
-                    overlapFactor: 0.50, // Überlappungsfaktor der FFT-Fenster
-                }
-            );
-        }
-    };
-
-    // Stoppe das Zuhören, falls erforderlich
-    const stopListening = () => {
-        if (recognizer) {
-            recognizer.stopListening();
-            setIsListening(false);
+        await requestMicrophonePermission();
+        if (!recognizerRef.current) {
+            await createModel();
         }
     };
 
     useEffect(() => {
-        init(); // Initialisiere das Modell und starte das Zuhören
+        init();
 
-        // Cleanup Funktion zum Stoppen des Zuhörens, wenn die Komponente entladen wird
         return () => {
-            if (recognizer) {
-                recognizer.stopListening();
+            if (recognizerRef.current) {
+                recognizerRef.current.stopListening();
             }
         };
-    }, [recognizer]);
+    }, []);
+
+    useEffect(() => {
+        let timerInterval;
+        if (timerActive && timeLeft > 0) {
+            timerInterval = setInterval(() => {
+                setTimeLeft((prevTime) => prevTime - 1);
+            }, 1000);
+        } else if (timeLeft === 0) {
+            setTimerActive(false); // Stop timer when it reaches 0
+        }
+
+        return () => clearInterval(timerInterval);
+    }, [timerActive, timeLeft]);
+
+    const startListening = () => {
+        const recognizer = recognizerRef.current;
+        if (recognizer) {
+            recognizer.listen(
+                (result) => {
+                    const scores = result.scores;
+                    const classLabels = recognizer.wordLabels();
+                    const predictions = [];
+                    const threshold = 0.75;
+
+                    for (let i = 0; i < classLabels.length; i++) {
+                        const classPrediction = `${classLabels[i]}: ${scores[i].toFixed(2)}`;
+                        predictions.push(classPrediction);
+                    }
+
+                    setPredictions(predictions);
+
+                    const startIndex = classLabels.indexOf("start");
+                    const stopIndex = classLabels.indexOf("stop");
+
+                    if (scores[startIndex] > threshold) {
+                        console.log("Start-Befehl erkannt");
+                        startTimer();
+                    } else if (scores[stopIndex] > threshold) {
+                        console.log("Stop-Befehl erkannt");
+                        stopTimer();
+                    }
+                },
+                {
+                    includeSpectrogram: true,
+                    probabilityThreshold: 0.5,
+                    invokeCallbackOnNoiseAndUnknown: true,
+                    overlapFactor: 0.50,
+                }
+            );
+            setIsListening(true);
+        }
+    };
+
+    const stopListening = () => {
+        if (recognizerRef.current) {
+            recognizerRef.current.stopListening();
+            setIsListening(false);
+        }
+    };
+
+    const startTimer = () => {
+        if (!timerActive && timeLeft > 0) {
+            setTimerActive(true); // Start or resume timer only if not active and timeLeft > 0
+        }
+    };
+
+    const stopTimer = () => {
+        setTimerActive(false); // Pause the timer without resetting it
+    };
 
     return (
         <div>
             <h1>Speech Command Timer</h1>
-            <button onClick={() => setIsListening(!isListening)}>
+            <button onClick={isListening ? stopListening : startListening}>
                 {isListening ? "Stop Listening" : "Start Listening"}
             </button>
             <div id="label-container"></div>
-            {/* Zeige die Vorhersagen im Interface */}
             <div>
                 {predictions.length > 0 && (
                     <ul>
@@ -126,6 +151,10 @@ const TimerComponent = () => {
                         ))}
                     </ul>
                 )}
+            </div>
+            <div>
+                <h2>Time Left: {timeLeft}s</h2>
+                {timeLeft === 0 && <p>Timer ended!</p>}
             </div>
         </div>
     );
