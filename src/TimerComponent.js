@@ -153,7 +153,7 @@ const TimerComponent = () => {
     };
 
     return (
-        <Container className="d-flex justify-content-center align-items-center vh-100 bg-dark text-light">
+        <Container className="d-flex justify-content-center align-items-center vh-100 bg-gray text-light">
             <Row className="text-center">
                 <Col>
                     <Card className="p-4 bg-dark text-light border-light">
