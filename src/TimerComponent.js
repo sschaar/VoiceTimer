@@ -6,13 +6,13 @@ const TimerComponent = () => {
     const recognizerRef = useRef(null);
     const [isListening, setIsListening] = useState(false);
     const [predictions, setPredictions] = useState([]);
-    const [timeLeft, setTimeLeft] = useState(60); // Timer starting from 1 minute (60 seconds)
-    const [timerActive, setTimerActive] = useState(false); // Timer control state
-    const [backgroundNoise, setBackgroundNoise] = useState(""); // Set initial value to an empty string
-    const [start, setStart] = useState(""); // Set initial value to an empty string
-    const [stop, setStop] = useState(""); // Set initial value to an empty string
+    const [timeLeft, setTimeLeft] = useState(60);
+    const [timerActive, setTimerActive] = useState(false);
+    const [backgroundNoise, setBackgroundNoise] = useState("");
+    const [start, setStart] = useState("");
+    const [stop, setStop] = useState("");
 
-    const URL = "https://teachablemachine.withgoogle.com/models/MOI9rzYJL/";
+    const URL = "https://teachablemachine.withgoogle.com/models/vSd1FUUzK/";
 
     const requestMicrophonePermission = async () => {
         try {
@@ -78,7 +78,7 @@ const TimerComponent = () => {
                 setTimeLeft((prevTime) => prevTime - 1);
             }, 1000);
         } else if (timeLeft === 0) {
-            setTimerActive(false); // Stop timer when it reaches 0
+            setTimerActive(false);
             resetValues();
         }
 
@@ -121,7 +121,7 @@ const TimerComponent = () => {
                         setStop(scores[stopIndex].toFixed(2));
                         stopTimer();
                     } else {
-                        setBackgroundNoise(scores[0].toFixed(2)); // Update background noise value
+                        setBackgroundNoise(scores[0].toFixed(2));
                     }
                 },
                 {
@@ -159,7 +159,6 @@ const TimerComponent = () => {
                     <Card className="p-4 bg-dark text-light border-light">
                         <h2>Timer</h2>
 
-                        {/* Timer and initial state */}
                         <div className="mb-4">
                             <h3 className="font-weight-bold">{timeLeft}s</h3>
                             {timeLeft === 0 && <p className="text-danger font-weight-bold">Timer ended!</p>}
@@ -172,7 +171,6 @@ const TimerComponent = () => {
                             {isListening ? "Stop Listening" : "Start Listening"}
                         </Button>
 
-                        {/* Predictions Display */}
                         <div id="label-container" className="mt-4">
                             {predictions.length > 0 && (
                                 <ListGroup className="mt-3">
